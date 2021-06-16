@@ -1,0 +1,52 @@
+pipeline {
+
+    agent any
+    environment {
+      PASSWORD = credentials('PASSWORD_DOCKER_HUB')
+    }
+    stages {
+
+      stage('Build'){
+        steps{
+          sh '''
+             ./jenkins/build/mvn-build.sh mvn clean package 
+             ./jenkins/build/doc-build.sh
+
+          '''  
+        }
+        post {
+          success {
+            archiveArtifacts artifacts: 'app/target/*.jar', fingerprint: true
+          }
+        }    
+      } 
+      stage('Test'){
+        steps{
+          sh '''
+             ./jenkins/test/mvn-build.sh mvn test
+          '''
+        }
+        post {
+          always {
+            junit 'app/target/surefire-reports/*.xml'
+          }
+        }
+
+      }   
+      stage('Push'){
+        steps{
+          sh '''
+             ./jenkins/push/image-push.sh
+          '''
+        }
+      }
+      stage('Deploy'){
+        steps{
+          sh '''
+            ./Workplace/jenkins-data/pipeline/jenkins/deploy/auth.sh
+            ./Workplace/jenkins-data/pipeline/jenkins/deploy/image.sh
+          '''
+        }
+      }
+  }
+}
